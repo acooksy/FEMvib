@@ -1,0 +1,4 @@
+The current version of the code is written to link to 
+slepc-3.13.4	https://slepc.upv.es/
+petsc-3.13.6	https://www.mcs.anl.gov/petsc
+libmesh-1.7.1	https://github.com/libMesh/
