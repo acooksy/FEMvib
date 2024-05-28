@@ -82,6 +82,7 @@ run_example() {
 	message_running $example_name $executable $options
 
 	$LIBMESH_RUN ./$executable $options $LIBMESH_OPTIONS
+##	$LIBMESH_RUN valgrind --leak-check=yes ./$executable $options $LIBMESH_OPTIONS 	## ALC to run valgrind
         RETVAL=$?
         # If we don't return 'success' or 'skip', quit
         if [ $RETVAL -ne 0 -a $RETVAL -ne 77 ]; then
