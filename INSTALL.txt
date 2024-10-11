@@ -1,0 +1,63 @@
+This version of FEMvib was tested with
+LibMesh 1.7.1
+PETSC 3.13.6
+SLEPC 3.13.4
+on Ubuntu 22.04.
+
+Install these on your system if they are not already present.  
+The instructions for installation on our systems are below.
+
+---------------------------
+Installation of PETSC and SLEPC require several additional packages to be pre-installed,
+including: 
+  mpich valgrind m4 doxygen liblam4 bison byacc libpthread-stubs0-dev python3-distutils
+These can be installed on Ubuntu with
+  sudo apt-get install mpich valgrind m4 doxygen liblam4 bison byacc libpthread-stubs0-dev python3-distutils
+
+The following assumes that LibMesh, PETSC and SLEPC will all be installed under the same directory ${rootdir}:
+
+# install PETSC 
+cd ${rootdir}/
+wget https://www.mcs.anl.gov/petsc/mirror/release-snapshots/petsc-3.13.tar.gz
+tar xfz petsc-3.13.tar.gz
+cd petsc-3.13.6/
+./configure --download-fblaslapack=1
+make PETSC_DIR=${rootdir}/petsc-3.13.6 PETSC_ARCH=arch-linux-c-debug all
+make PETSC_DIR=${rootdir}/petsc-3.13.6 PETSC_ARCH=arch-linux-c-debug check
+
+# install SLEPC
+cd ${rootdir}/
+wget https://slepc.upv.es/download/distrib/slepc-3.13.4.tar.gz
+tar xfz slepc-3.13.4.tar.gz
+cd slepc-3.13.4/
+export PETSC_DIR=/scratch/acooksy/petsc-3.13.6
+export SLEPC_DIR=/scratch/acooksy/slepc-3.13.4
+export PETSC_ARCH=arch-linux-c-debug
+./configure
+make SLEPC_DIR=${rootdir}/slepc/slepc-3.13.4 PETSC_DIR=${rootdir}/petsc/petsc-3.13.6 PETSC_ARCH=arch-linux-c-debug
+make SLEPC_DIR=${rootdir}/slepc/slepc-3.13.4 PETSC_DIR=${rootdir}/petsc/petsc-3.13.6 check
+
+# install LIBMESH 
+cd ${rootdir}/
+wget https://github.com/libMesh/libmesh/releases/download/v1.7.1/libmesh-1.7.1.tar.gz
+tar xfz libmesh-1.7.1.tar.gz
+cd libmesh-1.7.1
+./configure
+make
+  [this is a long step, approx 3 hrs]
+sudo make install > install.log
+make run_examples > run_examples.log
+  [another long step, approx 2 hrs]
+
+# install FEMvib
+cd ${rootdir_FEMvib}
+[Edit build.sh to export the correct paths to the LibMesh, PETSC, and SLEPC installations.
+./build/build.sh
+
+# to run FEMvib you will need a PES geometry file "coordinates"
+#  and a PES energy file "energyP" in a directory named "results" under ${rootdir}.
+#  See sample files in the examples directory.
+# for 2D run
+./femvib_run.sh 2 [# eigenvalues] [nx] [ny] [x0] [x1] [y0] [y1] [Element Type]
+# for 3D run
+./femvib_run.sh 3 [# eigenvalues] [nx] [ny] [nz] [x0] [x1] [y0] [y1] [z0] [z1] [Element Type]
