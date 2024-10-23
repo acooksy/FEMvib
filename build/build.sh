@@ -7,7 +7,11 @@ rootdir=`pwd`
 cd $rootdir
 if [ ! -e ./tools/gmat ] ; then
 	echo "compiling gmat" 
-	g++ -Iinclude/gmat/ -o ./tools/gmat src/gmat.cpp ;
+	g++ -Iinclude/gmat/ -o tools/gmat src/gmat.cpp ;
+fi
+if [ ! -e ./tools/tune ] ; then
+	echo "compiling tune" 
+	g++ -I./include/tune/ -o tools/tune src/tune.c
 fi
 if [ ! -e ./femvib ] ; then
 	echo "compiling femvib" 
