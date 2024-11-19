@@ -1,0 +1,14 @@
+bin_PROGRAMS = femvib
+femvib_SOURCES = femvib.cpp
+
+LIBMESH_DIR = /scratch/acooksy/libmesh-1.7.1
+PETSC_DIR = /scratch/acooksy/petsc-3.13.6
+SLEPC_DIR = /scratch/acooksy/slepc-3.13.4
+PETSC_ARCH = arch-linux-c-debug
+SRC_DIR = /home/acooksy/FEMvib
+EIGEN_DIR = /scratch/acooksy/eigen-3.4.0
+
+AM_CXX = mpicxx
+
+AM_CPPFLAGS = -I. -I${LIBMESH_DIR}/include. -I${SRC_DIR}/include. -I${EIGEN_DIR}  -I${SLEPC_DIR}/include -I${SLEPC_DIR}/${PETSC_ARCH}/include -I${PETSC_DIR}/include -I${PETSC_DIR}/include/petsc/mpiuni -I${PETSC_DIR}/${PETSC_ARCH}/include -I${LIBMESH_DIR}/include -I${LIBMESH_DIR}/contrib/metaphysicl/src/numerics/include -I${LIBMESH_DIR}/contrib/metaphysicl/src/core/include -I${LIBMESH_DIR}/contrib/metaphysicl/src/utilities/include -I${LIBMESH_DIR}/contrib/nanoflann/include -I${LIBMESH_DIR}/contrib/fparser -I${LIBMESH_DIR}/contrib/libHilbert/include -I${LIBMESH_DIR}/contrib/nemesis/v5.22/nemesis -I${LIBMESH_DIR}/contrib/exodusii/v5.22/exodus/cbind/include -I${LIBMESH_DIR}/contrib/netcdf/v4/include -I${LIBMESH_DIR}/contrib/eigen/eigen -I${LIBMESH_DIR}/contrib/gmv -I${LIBMESH_DIR}/contrib/qhull/qhull/src -I${LIBMESH_DIR}/contrib/qhull/qhull/src/libqhullcpp -I${LIBMESH_DIR}/contrib/parmetis/include -I${LIBMESH_DIR}/contrib/metis/include -I${LIBMESH_DIR}/contrib/boost/include -I${LIBMESH_DIR}/contrib/timpi/src/utilities/include -I${LIBMESH_DIR}/contrib/timpi/src/utilities/include -I${LIBMESH_DIR}/contrib/timpi/src/parallel/include -I${LIBMESH_DIR}/contrib/timpi/src/algorithms/include
+

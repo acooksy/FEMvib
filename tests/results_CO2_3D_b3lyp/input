@@ -1,0 +1,17 @@
+ndim=3 
+nev=10 
+npr=0 
+npr1=1 
+elemTypeStr=HEX27
+nx=20
+x0=1.0 
+x1=1.5 
+pbc_x=0
+ny=20
+y0=1.0 
+y1=1.5 
+pbc_y=0
+nz=20
+z0=2.249
+z1=4.034
+pbc_z=0

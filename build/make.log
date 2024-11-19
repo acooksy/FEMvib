@@ -1,0 +1,40 @@
+make  all-recursive
+make[1]: Entering directory '/home/acooksy/FEMvib/build'
+Making all in src
+make[2]: Entering directory '/home/acooksy/FEMvib/build/src'
+ cd ../.. && /bin/bash /home/acooksy/FEMvib/missing automake-1.16 --foreign src/Makefile
+ cd .. && /bin/bash ./config.status src/Makefile depfiles
+config.status: creating src/Makefile
+config.status: executing depfiles commands
+mpicxx  -g -O2 -std=gnu++17 -O2 -felide-constructors -funroll-loops -fstrict-aliasing -Wdisabled-optimization -fopenmp -o .libs/femvib femvib.o -Wl,-rpath -Wl,/scratch/acooksy/slepc-3.13.4/arch-linux-c-debug/lib -Wl,-rpath -Wl,/scratch/acooksy/petsc-3.13.6/arch-linux-c-debug/lib -Wl,-rpath -Wl,/usr/lib/x86_64-linux-gnu -Wl,-rpath -Wl,/usr/lib/gcc/x86_64-linux-gnu/7 -Wl,-rpath -Wl,/lib/x86_64-linux-gnu  /scratch/acooksy/libmesh-1.7.1/.libs/libmesh_opt.so -L/scratch/acooksy/slepc-3.13.4/arch-linux-c-debug/lib -L/scratch/acooksy/petsc-3.13.6/arch-linux-c-debug/lib /scratch/acooksy/libmesh-1.7.1/contrib/netcdf/v4/liblib/.libs/libnetcdf.so /scratch/acooksy/libmesh-1.7.1/contrib/timpi/src/.libs/libtimpi_opt.so -ltirpc -L/usr/lib/x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/7 -L/lib/x86_64-linux-gnu -lslepc -lpetsc -lflapack -lfblas -lpthread -lmpichfort -lmpich -lgfortran -lm -lgcc_s -lquadmath -lstdc++ -ldl -fopenmp  -o femvib femvib.o  
+/usr/bin/ld: femvib.o: in function `LUdcmp::solve(NRvector<double> const&, NRvector<double>&)':
+/home/acooksy/FEMvib/build/src/../../src/include/ludcmp.h:57: multiple definition of `LUdcmp::solve(NRvector<double> const&, NRvector<double>&)'; femvib.o:/home/acooksy/FEMvib/build/src/../../src/include/ludcmp.h:57: first defined here
+/usr/bin/ld: femvib.o: in function `LUdcmp::solve(NRmatrix<double> const&, NRmatrix<double>&)':
+/home/acooksy/FEMvib/build/src/../../src/include/ludcmp.h:81: multiple definition of `LUdcmp::solve(NRmatrix<double> const&, NRmatrix<double>&)'; femvib.o:/home/acooksy/FEMvib/build/src/../../src/include/ludcmp.h:81: first defined here
+/usr/bin/ld: femvib.o: in function `LUdcmp::inverse(NRmatrix<double>&)':
+/home/acooksy/FEMvib/build/src/../../src/include/ludcmp.h:93: multiple definition of `LUdcmp::inverse(NRmatrix<double>&)'; femvib.o:/home/acooksy/FEMvib/build/src/../../src/include/ludcmp.h:93: first defined here
+/usr/bin/ld: femvib.o: in function `LUdcmp::det()':
+/home/acooksy/FEMvib/build/src/../../src/include/ludcmp.h:103: multiple definition of `LUdcmp::det()'; femvib.o:/home/acooksy/FEMvib/build/src/../../src/include/ludcmp.h:103: first defined here
+/usr/bin/ld: femvib.o: in function `LUdcmp::mprove(NRvector<double> const&, NRvector<double>&)':
+/home/acooksy/FEMvib/build/src/../../src/include/ludcmp.h:109: multiple definition of `LUdcmp::mprove(NRvector<double> const&, NRvector<double>&)'; femvib.o:/home/acooksy/FEMvib/build/src/../../src/include/ludcmp.h:109: first defined here
+/usr/bin/ld: femvib.o: in function `howmany8(NRmatrix<double>&, NRvector<double>&, NRvector<double>&, int&, int&, int&, NRmatrix<double>&, NRvector<double>&)':
+/home/acooksy/FEMvib/build/src/../../src/include/pointSelector2_alc.h:3: multiple definition of `howmany8(NRmatrix<double>&, NRvector<double>&, NRvector<double>&, int&, int&, int&, NRmatrix<double>&, NRvector<double>&)'; femvib.o:/home/acooksy/FEMvib/build/src/../../src/include/pointSelector2_alc.h:3: first defined here
+/usr/bin/ld: femvib.o: in function `dupl(NRmatrix<double>&, int&, int&)':
+/home/acooksy/FEMvib/build/src/../../src/include/duplicates_alc.h:5: multiple definition of `dupl(NRmatrix<double>&, int&, int&)'; femvib.o:/home/acooksy/FEMvib/build/src/../../src/include/duplicates_alc.h:5: first defined here
+/usr/bin/ld: femvib.o: in function `LUdcmp::LUdcmp(NRmatrix<double> const&)':
+/home/acooksy/FEMvib/build/src/../../src/include/ludcmp.h:15: multiple definition of `LUdcmp::LUdcmp(NRmatrix<double> const&)'; femvib.o:/home/acooksy/FEMvib/build/src/../../src/include/ludcmp.h:15: first defined here
+/usr/bin/ld: femvib.o: in function `LUdcmp::LUdcmp(NRmatrix<double> const&)':
+/home/acooksy/FEMvib/build/src/../../src/include/ludcmp.h:15: multiple definition of `LUdcmp::LUdcmp(NRmatrix<double> const&)'; femvib.o:/home/acooksy/FEMvib/build/src/../../src/include/ludcmp.h:15: first defined here
+/usr/bin/ld: femvib.o: in function `assemble_mass(libMesh::EquationSystems&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)':
+/home/acooksy/FEMvib/build/src/../../src/femvib.cpp:636: multiple definition of `assemble_mass(libMesh::EquationSystems&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)'; femvib.o:/home/acooksy/FEMvib/build/src/../../src/femvib.cpp:636: first defined here
+/usr/bin/ld: femvib.o: in function `parseFile(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)':
+/home/acooksy/FEMvib/build/src/../../src/femvib.cpp:110: multiple definition of `parseFile(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)'; femvib.o:/home/acooksy/FEMvib/build/src/../../src/femvib.cpp:110: first defined here
+/usr/bin/ld: femvib.o:(.bss+0x0): multiple definition of `variables[abi:cxx11]'; femvib.o:(.bss+0x0): first defined here
+/usr/bin/ld: femvib.o: in function `main':
+/home/acooksy/FEMvib/build/src/../../src/femvib.cpp:126: multiple definition of `main'; femvib.o:/home/acooksy/FEMvib/build/src/../../src/femvib.cpp:126: first defined here
+collect2: error: ld returned 1 exit status
+make[2]: *** [Makefile:366: femvib] Error 1
+make[2]: Leaving directory '/home/acooksy/FEMvib/build/src'
+make[1]: *** [Makefile:509: all-recursive] Error 1
+make[1]: Leaving directory '/home/acooksy/FEMvib/build'
+make: *** [Makefile:352: all] Error 2

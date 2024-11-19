@@ -1,0 +1,17 @@
+ndim=2 
+nev=10 
+npr=2 
+npr1=1 
+elemTypeStr=QUAD9
+nx=20 
+x0=1.0 
+x1=1.8 
+pbc_x=0
+ny=20 
+y0=-0.4
+y1=0.4 
+pbc_y=0
+nz=0 
+z0=0.0 
+z1=1.0 
+pbc_z=0

@@ -1,6 +1,5 @@
 # untracked files
 *.o
-femvib_ex-ep2
-tools/
-test/
+make_attempts/
 results/
+tests_all/
