@@ -1,7 +1,7 @@
-This version of FEMvib was tested with
-LibMesh 1.7.1
-PETSC 3.13.6
-SLEPC 3.13.4
+This version of FEMvib compiles on our machines with
+LibMesh 1.8.0
+PETSC 3.18.6
+SLEPC 3.18.3
 on Ubuntu 22.04.
 
 Install these on your system if they are not already present.  
@@ -14,44 +14,53 @@ including:
 These can be installed on Ubuntu with
   sudo apt-get install mpich valgrind m4 doxygen liblam4 bison byacc libpthread-stubs0-dev python3-distutils
 
-The following assumes that LibMesh, PETSC and SLEPC will all be installed under the same directory ${rootdir}:
+The following assumes that LibMesh, PETSC and SLEPC will all be installed under the same directory ${rootdir}.
+We install the libraries under ${rootdir} = /opt and preface these commands with "sudo".
 
 # install PETSC 
 cd ${rootdir}/
-wget https://www.mcs.anl.gov/petsc/mirror/release-snapshots/petsc-3.13.tar.gz
-tar xfz petsc-3.13.tar.gz
-cd petsc-3.13.6/
+wget https://www.mcs.anl.gov/petsc/mirror/release-snapshots/petsc-3.18.tar.gz
+tar xfz petsc-3.18.tar.gz
+cd pestsc-3.18.6/
 ./configure --download-fblaslapack=1
-make PETSC_DIR=${rootdir}/petsc-3.13.6 PETSC_ARCH=arch-linux-c-debug all
-make PETSC_DIR=${rootdir}/petsc-3.13.6 PETSC_ARCH=arch-linux-c-debug check
+# The next two lines are suggested by the PETSC installer. 
+# Use the value for PETSC_ARCH suggested by the installer for all PETSC_ARCH below, including the FEMvibn build.sh script..
+make PETSC_DIR=${rootdir}/pestsc-3.18.6 PETSC_ARCH=arch-linux-c-debug all
+make PETSC_DIR=${rootdir}/pestsc-3.18.6 PETSC_ARCH=arch-linux-c-debug check
 
 # install SLEPC
 cd ${rootdir}/
-wget https://slepc.upv.es/download/distrib/slepc-3.13.4.tar.gz
-tar xfz slepc-3.13.4.tar.gz
-cd slepc-3.13.4/
-export PETSC_DIR=/scratch/acooksy/petsc-3.13.6
-export SLEPC_DIR=/scratch/acooksy/slepc-3.13.4
+wget https://slepc.upv.es/download/distrib/slepc-3.18.3.tar.gz
+tar xfz slepc-3.18.3.tar.gz
+cd slepc-3.18.3/
+export PETSC_DIR=/scratch/acooksy/pestsc-3.18.6
+export SLEPC_DIR=/scratch/acooksy/slepc-3.18.3
 export PETSC_ARCH=arch-linux-c-debug
 ./configure
-make SLEPC_DIR=${rootdir}/slepc/slepc-3.13.4 PETSC_DIR=${rootdir}/petsc/petsc-3.13.6 PETSC_ARCH=arch-linux-c-debug
-make SLEPC_DIR=${rootdir}/slepc/slepc-3.13.4 PETSC_DIR=${rootdir}/petsc/petsc-3.13.6 check
+make SLEPC_DIR=${rootdir}/slepc/slepc-3.18.3 PETSC_DIR=${rootdir}/petsc/pestsc-3.18.6 PETSC_ARCH=arch-linux-c-debug
+make SLEPC_DIR=${rootdir}/slepc/slepc-3.18.3 PETSC_DIR=${rootdir}/petsc/pestsc-3.18.6 check
 
 # install LIBMESH 
 cd ${rootdir}/
-wget https://github.com/libMesh/libmesh/releases/download/v1.7.1/libmesh-1.7.1.tar.gz
-tar xfz libmesh-1.7.1.tar.gz
-cd libmesh-1.7.1
+wget https://github.com/libMesh/libmesh/releases/download/v1.7.1/libmesh-1.8.0.tar.gz
+tar xfz libmesh-1.8.0.tar.gz
+cd libmesh-1.8.0
 ./configure
 make
-  [this is a long step, approx 3 hrs]
+#  [this is a long step, 1-3 hrs on our machines]
 sudo make install > install.log
 make run_examples > run_examples.log
-  [another long step, approx 2 hrs]
+#  [another long step, 1-2 hrs]
+
+# install EIGEN
+cd ${rootdir}/
+wget https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz
+tar xfz eigen-3.4.0.tar.gz
 
 # install FEMvib
 cd ${rootdir_FEMvib}
-[Edit build.sh to export the correct paths to the LibMesh, PETSC, and SLEPC installations.
+# [Edit build.sh to export the correct paths to the LibMesh, PETSC, SLEPC, and EIGEN installations 
+#   and to use the correct PETSC_ARCH value.
 ./build/build.sh
 
 # to run FEMvib you will need a PES geometry file "coordinates"

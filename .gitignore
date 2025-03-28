@@ -1,5 +1,12 @@
 # untracked files
+.gitignore
 *.o
+femvib
+femvib_sphr
+build/build_sphr.sh
 make_attempts/
 results/
+src/femvib_sphr.cpp
 tests_all/
+tools/gmat
+tools/tune

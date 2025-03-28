@@ -9,7 +9,7 @@
           fi
           cp -pr $test ./results
           echo -e "${CYAN}++++++++  RUNNING TEST $test ++++++++${NC}"
-          ./femvib_run.sh 2
+          ./femvib_run.sh
           if diff -q results/eigenvalues.txt results/eigenvalues_std.txt; then
             echo -e "${GREEN}Test $test PASSED${NC}"
           else
@@ -17,4 +17,4 @@
             exit 1
           fi
         done
-
+        echo -e "${GREEN}ALL TESTS PASSED${NC}"
