@@ -3,6 +3,7 @@
 *.o
 femvib
 femvib_sphr
+nohup.out
 build/build_sphr.sh
 make_attempts/
 results/
