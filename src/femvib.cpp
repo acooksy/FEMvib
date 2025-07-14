@@ -1108,10 +1108,13 @@ if (ndim == 3)	inpot >> xpot[i][0] >> xpot[i][1] >> xpot[i][2] >> Energy[i];
       std::cout << "Finished writing PES data to file: " << "results/pot.out" << std::endl;
       std::cout << "Matrix A and B assembly completed. " << "\n" << std::endl;
 
-      matrix_A.print_matlab("results/A.m");
-      matrix_B.print_matlab("results/B.m");
-      std::cout << "Matrix A Exported. " << "\n" << std::endl;
-      std::cout << "Matrix B Exported. " << "\n" << std::endl;
+      //      THE FOLLOWING COMMANDS GENERATE A DEPRECATED CODE WARNING
+      //      but still (as of petsc-3.23.4) geneate A.m and B.m files if needed for debugging
+      //      These are big files so better left out if not needed
+//      matrix_A.print_matlab("results/A.m");
+//      matrix_B.print_matlab("results/B.m");
+//      std::cout << "Matrix A Exported. " << "\n" << std::endl;
+//      std::cout << "Matrix B Exported. " << "\n" << std::endl;
 
 
 #else

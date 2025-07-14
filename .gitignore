@@ -5,6 +5,7 @@ femvib
 femvib_sphr
 nohup.out
 build/build_sphr.sh
+archive/
 make_attempts/
 results/
 src/femvib_sphr.cpp
