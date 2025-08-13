@@ -65,14 +65,10 @@ tar xfz eigen-3.4.0.tar.gz
 
 # install FEMvib
 cd ${rootdir_FEMvib}
-# [Edit build.sh to export the correct paths to the LibMesh, PETSC, SLEPC, and EIGEN installations 
+# [Edit ./build.sh to export the correct paths to the LibMesh, PETSC, SLEPC, and EIGEN installations 
 #   and to set the correct PETSC_ARCH value.
-./build/build.sh
+./build.sh
 
 # to run FEMvib you will need a PES geometry file "coordinates"
 #  and a PES energy file "energyP" in a directory named "results" under ${rootdir}.
-#  See sample files in the examples directory.
-# for 2D run
-./femvib_run.sh 2 [# eigenvalues] [nx] [ny] [x0] [x1] [y0] [y1] [Element Type]
-# for 3D run
-./femvib_run.sh 3 [# eigenvalues] [nx] [ny] [nz] [x0] [x1] [y0] [y1] [z0] [z1] [Element Type]
+#  See sample files in the tests/ directory.

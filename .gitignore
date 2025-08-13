@@ -1,4 +1,5 @@
 # untracked files
+.git/objects/
 .gitignore
 *.o
 femvib
