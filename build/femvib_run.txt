@@ -11,7 +11,7 @@
 # Requires input FEMvib file "input" with default values for all arguments.
 
 # Set the location of the FEMvib directory
-FEMvibDir="/home/acooksy/FEMvib/"
+FEMvibDir="DUMMY"
 # Set the input filename; default is results/input
 input_filename="results/input"
 

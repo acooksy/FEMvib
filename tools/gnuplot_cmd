@@ -1,7 +1,0 @@
-set samples 20
-set isosamples 20
-set hidden3d
-set xrange [1:1.5]
-set yrange [1:1.5]
-splot "soln_1_6561.dat" with points pt 7 palette
-

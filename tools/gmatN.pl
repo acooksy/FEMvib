@@ -1,4 +1,4 @@
-#! /usr/bin/perl
+#! /usr/bin/env perl
 
 # perl script for extracting the values from the gmat and submitting them to the c-code for interpolation
 

@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/env python3
 # This script parses Gaussian log files.  
 # Converted and upgraded from Cooksy's es_parse.csh and femvib_parse.csh.
 # 

@@ -1,0 +1,4 @@
+CO2 B3LYP/cc-pVDZ stretch PES: 
+2D surface, CO stretches (local modes), 290 points on PES, 20x20 grid, 10 eigenvalues around 10,000 cm-1
+gmat has been run; tune will be run
++++++++++++++++++++++++++++

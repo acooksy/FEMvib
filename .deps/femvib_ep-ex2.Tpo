@@ -627,13 +627,20 @@ femvib.o: src/femvib.cpp /usr/include/stdc-predef.h \
  /opt/slepc-3.23.2/include/slepcvec.h /opt/slepc-3.23.2/include/slepcbv.h \
  /opt/slepc-3.23.2/include/slepcds.h /opt/slepc-3.23.2/include/slepcfn.h \
  /opt/slepc-3.23.2/include/slepcrg.h /opt/slepc-3.23.2/include/slepclme.h \
+ /opt/libmesh-1.8.1/include/libmesh/petsc_matrix.h \
+ /opt/libmesh-1.8.1/include/libmesh/petsc_matrix_base.h \
+ /opt/libmesh-1.8.1/include/libmesh/sparse_matrix.h \
+ /opt/libmesh-1.8.1/include/libmesh/petsc_solver_exception.h \
+ /opt/libmesh-1.8.1/include/libmesh/wrapped_petsc.h \
+ /usr/include/c++/11/mutex /usr/include/c++/11/bits/std_mutex.h \
+ /usr/include/c++/11/bits/unique_lock.h \
+ /opt/libmesh-1.8.1/include/libmesh/petsc_vector.h \
+ /opt/libmesh-1.8.1/include/libmesh/numeric_vector.h \
+ /opt/libmesh-1.8.1/include/libmesh/enum_to_string.h \
+ /usr/include/c++/11/condition_variable \
  /opt/libmesh-1.8.1/include/libmesh/fe.h \
  /opt/libmesh-1.8.1/include/libmesh/quadrature_gauss.h \
  /opt/libmesh-1.8.1/include/libmesh/quadrature.h \
- /opt/libmesh-1.8.1/include/libmesh/sparse_matrix.h \
- /opt/libmesh-1.8.1/include/libmesh/numeric_vector.h \
- /usr/include/c++/11/mutex /usr/include/c++/11/bits/std_mutex.h \
- /usr/include/c++/11/bits/unique_lock.h \
  /opt/libmesh-1.8.1/include/libmesh/enum_eigen_solver_type.h \
  /opt/libmesh-1.8.1/include/libmesh/getpot.h /usr/include/c++/11/fstream \
  /usr/include/x86_64-linux-gnu/c++/11/bits/basic_file.h \
@@ -1366,14 +1373,21 @@ femvib.o: src/femvib.cpp /usr/include/stdc-predef.h \
 /opt/slepc-3.23.2/include/slepcfn.h:
 /opt/slepc-3.23.2/include/slepcrg.h:
 /opt/slepc-3.23.2/include/slepclme.h:
-/opt/libmesh-1.8.1/include/libmesh/fe.h:
-/opt/libmesh-1.8.1/include/libmesh/quadrature_gauss.h:
-/opt/libmesh-1.8.1/include/libmesh/quadrature.h:
+/opt/libmesh-1.8.1/include/libmesh/petsc_matrix.h:
+/opt/libmesh-1.8.1/include/libmesh/petsc_matrix_base.h:
 /opt/libmesh-1.8.1/include/libmesh/sparse_matrix.h:
-/opt/libmesh-1.8.1/include/libmesh/numeric_vector.h:
+/opt/libmesh-1.8.1/include/libmesh/petsc_solver_exception.h:
+/opt/libmesh-1.8.1/include/libmesh/wrapped_petsc.h:
 /usr/include/c++/11/mutex:
 /usr/include/c++/11/bits/std_mutex.h:
 /usr/include/c++/11/bits/unique_lock.h:
+/opt/libmesh-1.8.1/include/libmesh/petsc_vector.h:
+/opt/libmesh-1.8.1/include/libmesh/numeric_vector.h:
+/opt/libmesh-1.8.1/include/libmesh/enum_to_string.h:
+/usr/include/c++/11/condition_variable:
+/opt/libmesh-1.8.1/include/libmesh/fe.h:
+/opt/libmesh-1.8.1/include/libmesh/quadrature_gauss.h:
+/opt/libmesh-1.8.1/include/libmesh/quadrature.h:
 /opt/libmesh-1.8.1/include/libmesh/enum_eigen_solver_type.h:
 /opt/libmesh-1.8.1/include/libmesh/getpot.h:
 /usr/include/c++/11/fstream:

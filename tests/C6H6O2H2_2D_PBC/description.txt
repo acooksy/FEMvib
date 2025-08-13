@@ -1,0 +1,4 @@
+C6H2O2 QCISD/cc-pVDZ: 
+2D surface, periodic coordinates (OH torsions), 325 points on PES, 20x20 grid, 10 eigenvalues
+gmat and tune will be run
++++++++++++++++++++++++++++

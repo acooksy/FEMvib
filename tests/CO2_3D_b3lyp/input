@@ -1,5 +1,6 @@
 ndim=3 
 nev=10 
+targ_en=0.0
 npr=0 
 npr1=1 
 elemTypeStr=HEX27

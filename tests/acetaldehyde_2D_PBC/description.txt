@@ -1,0 +1,4 @@
+C2H4O2: 
+2D surface, periodic coordinates (OH torsions), 325 points on PES, 160x160 grid, 10 eigenvalues
+gmat and tune already run
++++++++++++++++++++++++++++

@@ -1,5 +1,6 @@
 ndim=2 
 nev=10 
+targ_en=10000.0
 npr=2 
 npr1=1 
 elemTypeStr=QUAD9

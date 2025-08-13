@@ -2,13 +2,9 @@
 .gitignore
 *.o
 femvib
-femvib_sphr
-nohup.out
-build/build_sphr.sh
 archive/
 make_attempts/
 results/
-src/femvib_sphr.cpp
 tests_all/
 tools/gmat
 tools/tune

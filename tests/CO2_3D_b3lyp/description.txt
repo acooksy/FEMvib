@@ -1,0 +1,4 @@
+CO2 B3LYP/cc-pVDZ PES: 
+3D surface, CO stretches, bend (local modes), 6359 points on PES, 20x20x20 grid, 10 eigenvalues 
+gmat and tune have been run; 
++++++++++++++++++++++++++++

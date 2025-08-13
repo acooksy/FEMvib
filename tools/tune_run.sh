@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
  dim=$1
 # np='10 20 30'
 # rpar='0.6 1.0 1.4 1.8 2.2 2.6 3.0'

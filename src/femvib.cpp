@@ -1,46 +1,60 @@
-// Revised version works with 2D PBC; confirmed using free rotor PES and G-matrix from 
-// 1,4-dihydroxybenzene.  FEMvibn predicts spectrum with B value within 1 cm-1 of my
-// estimate (21.7 vs 20.8 cm-1) and correct degeneracy.
-// ALC 28-May-2024
-// This version is working with 2D and 3D, accepting ndim and ElemType as arguments
-// Not working with 1D -- throws memory access errors from PETSC, looks like something
-//   being called that's not equipped for 1D matrices.
+// femvib.cpp is the main FEMvib program, constructing the A and B matrices from the PES and G-matrix 
+//  elements, then diagonalizing with the SLEPc eigensolver.
 //
-// The libMesh Finite Element Library.
-// Copyright (C) 2002-2021 Benjamin S. Kirk, John W. Peterson, Roy H. Stogner
-
-// This library is free software; you can redistribute it and/or
-// modify it under the terms of the GNU Lesser General Public
-// License as published by the Free Software Foundation; either
-// version 2.1 of the License, or (at your option) any later version.
-
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// Lesser General Public License for more details.
-
-// You should have received a copy of the GNU Lesser General Public
-// License along with this library; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-
-
-
+// Original author: Dong Xu, 2007
+// Extensive modifications: Peter Zajac, 2013
+// Rewritten with updated calls for compatibility with current libraries: ALC, 2024
+// 13-Aug-2025 v2.2.00 ALC
+// Added support for target energy, rather than always calculating eigenvalues from ground state on up.
+//  Adds a new input option "-w targ_en" where targ_en = target energy of the SLEPc eigensolver.
+//  In general this means nev eigenpairs will be obtained, roughly centered on targ_en.
+// Since the above revision changed the workflow to leave libMesh earlier and let PETSc do all the
+//  post-processing, the output format has changed.  In particular, eigenstates are now printed
+//  directly to ascii xyz files, rather than as ExodusII files that required an additional translator script.
+//
+// The original FEMvib C++ code femvib.cpp was built on top of:
 // <h1>Eigenproblems Example 2 - Solving a generalized Eigen Problem</h1>
 // \author Steffen Petersen
 // \date 2006
-//
-// This example shows how the previous EigenSolver example
-// can be adapted to solve generalized eigenvalue problems.
-//
-// For solving eigen problems, libMesh interfaces
-// SLEPc (www.grycap.upv.es/slepc/) which again is based on PETSc.
-// Hence, this example will only work if the library is compiled
-// with SLEPc support enabled.
-//
 // In this example some eigenvalues for a generalized symmetric
 // eigenvalue problem A*x=lambda*B*x are computed, where the
 // matrices A and B are assembled according to stiffness and
 // mass matrix, respectively.
+//
+//  FEMvib should be run using the femvib_run.sh script from a directory with a subdirectory "./results"
+//  which houses these files:
+//    input  (values for each of the input options)
+//    coordinates  (the geometries at all points on the PES)
+//    energyP  (the energies at all points on the PES)
+//  Formats for these last two files are given below or see examples in tests/:
+//
+//  coordinates:
+//    (# geometries)  (# atoms in molecule)  (# PES coordinates = PES dimensionality
+//    [1st geometry is a reference geometry (typically a stationary point) in xyz format with atomic masses:]
+//       mass_1  x_1  y_1  z_1
+//       mass_2  x_2  y_2  z_2
+//         ...
+//       mass_N  x_N  y_N  z_N
+//    (value coord 1)  (value coord 2)  (value coord 3)      [assuming a 3D PES]
+//    [2nd geometry is a geometry from some point on PES in xyz format with no leading column]
+//       x_1  y_1  z_1
+//       x_2  y_2  z_2
+//         ...
+//       x_N  y_N  z_N
+//    [Repeat for all geometries.  
+//     The reference geometry should be given again, so it can be linked to the correct PES coordinates.
+//     The total number of lines in the coordinates file is therefore (N_atom + 1) * (N_points + 1)
+//     where N_atom is the number of atoms in the molecule and N_points is the number of points in the PES.]
+//
+//  energyP:
+//      (# energies)
+//      (value coord 1)  (value coord 2)  (value coord 3)  (relative energy 1 in cm-1)
+//      (value coord 1)  (value coord 2)  (value coord 3)  (relative energy 2 in cm-1)
+//         ...
+//      (value coord 1)  (value coord 2)  (value coord 3)  (relative energy N in cm-1)
+//    [where the relative energy is typically computed relative to the equilibrium geometry.]
+//     The total number of lines in the energyP file is therefore (N_points + 1) ]
+//
 
 // libMesh include files.
 #include "libmesh/libmesh.h"
@@ -55,6 +69,8 @@
 #include "libmesh/eigen_system.h"
 #include "libmesh/equation_systems.h"
 #include "libmesh/slepc_eigen_solver.h"
+#include "libmesh/petsc_matrix.h"
+#include "libmesh/petsc_vector.h"
 #include "libmesh/fe.h"
 #include "libmesh/quadrature_gauss.h"
 #include "libmesh/dense_matrix.h"
@@ -67,10 +83,13 @@
 // the above all from the original eigenproblems_ex2 file
 //// the below added for femvib
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <string>
 #include <unordered_map>
 #include <getopt.h>
+#include <chrono>
+#include <ctime>
 //#include "Eigen/src/SparseCore/SparseView.h"   // this one breaks with an ISO C++ error
 #include "Eigen/src/Householder/HouseholderSequence.h"
 #include "Eigen/src/Core/VectorwiseOp.h"
@@ -106,6 +125,12 @@ std::unordered_map<std::string, std::string> variables;
 void assemble_mass(EquationSystems & es,
                    const std::string & system_name);
 
+void write_petsc_eigenvector_ascii(const EPS& eps,
+                                   PetscInt eig_index,
+                                   const libMesh::EquationSystems& equation_systems,
+                                   const std::string& system_name,
+                                   const std::string& var_name,
+                                   const std::string& output_filename);
 
 void parseFile(const std::string& filename) {
     std::ifstream file(filename);
@@ -125,21 +150,28 @@ void parseFile(const std::string& filename) {
 int main (int argc, char ** argv)
 {
   int ndim;
+  auto start = std::chrono::system_clock::now();  // start timekeeping
+
   // Initialize libMesh and the dependent libraries.
   LibMeshInit init (argc, argv);
-
-  // This example is designed for the SLEPc eigen solver interface.
-#ifndef LIBMESH_HAVE_SLEPC
-  if (init.comm().rank() == 0)
-    libMesh::err << "ERROR: This example requires libMesh to be\n"
-                 << "compiled with SLEPc eigen solvers support!"
-                 << std::endl;
-#else
 
 #ifdef LIBMESH_DEFAULT_SINGLE_PRECISION
   // SLEPc currently gives us a nasty crash with Real==float
   libmesh_example_requires(false, "--disable-singleprecision");
 #endif
+
+  // Initiate log file
+std::ofstream logfile("results/femvib.log", std::ios::app);
+std::string versioninfo = "FEMvib v2.2.00\n 13-Aug-2025 \n";
+std::string authorlist = "Authors: Dong Xu, Peter Zajac, Jernej Stare, Andrew L. Cooksy\n";
+std::string citation = "Citation: Comp. Phys. Commun. 180, 2079-2094 (2009). (doi:10.1016/j.cpc.2009.06.010.)\n";
+std::string contactinfo = "Contact: acooksy@sdsu.edu\n";
+std::string licenseinfo = "Released under the GNU GENERAL PUBLIC LICENSE version 3 2007\n\n";
+logfile << versioninfo << authorlist << citation << contactinfo << licenseinfo
+              << std::endl;
+std::time_t start_time = std::chrono::system_clock::to_time_t(start);
+logfile << "Starting computation at " << std::ctime(&start_time) << "\n";
+std::cout << "Starting computation at " << std::ctime(&start_time) << "\n";
 
   // Tell the user what we are doing.
   libMesh::out << "Running " << argv[0];
@@ -154,6 +186,7 @@ int main (int argc, char ** argv)
   // -ndim [# dimensions]
   // -n [# eigenvalues to be computed]
   // -nx -ny -nz  [# points in mesh along each coord]
+  // -targ_en  [target energy eigenvalue]
   // -x0 -x1 -y0 -y1 -z0 -z1  [lower / upper bounds along each coord]
   // -pbcx -pbcy -pbcz  [flags for periodfic boundary conditions along each coord]
   // -elemTypeStr  [FEM element type]
@@ -171,6 +204,7 @@ int main (int argc, char ** argv)
   int nx = 10;
   int ny = 10;
   int nz = 10;
+  double targ_en = 0.0;
   double x0 = 0.0;
   double x1 = 1.0;
   double y0 = 0.0;
@@ -182,7 +216,7 @@ int main (int argc, char ** argv)
   int pbc_z = 0;
 
 // switch statements should use single-character flags
-//   d=ndim f=input_file e=nev p=npr q=npr1 t=elemTypeStr 
+//   d=ndim f=input_file e=nev p=npr q=npr1 t=elemTypeStr w=targ_en
 //   x=nx y=ny z=nz 0=x0 1=x1 2=y0 3=y1 4=z0 5=z1 6=pbc_x 7=pbc_y 8=pbc_z
   while ((opt = getopt(argc, argv, "f:d:e:p:q:t:x:y:z:0:1:2:3:4:5:6:7:8:")) != -1) {
     switch (opt) {
@@ -203,6 +237,9 @@ int main (int argc, char ** argv)
         break;
       case 't':
         variables["elemTypeStr"] = optarg;
+        break;
+      case 'w':
+        variables["targ_en"] = optarg;
         break;
       case 'x':
         variables["nx"] = optarg;
@@ -241,7 +278,7 @@ int main (int argc, char ** argv)
         variables["pbc_z"] = optarg;
         break;
       default:
-        std::cerr << "Usage: " << argv[0] << " [-f input_file] [-d ndim] [-e nev] [-p npr] [-q npr1] [t elemTypeStr] [-x nx] [-y ny] [-z nz] [-0 x0] [-1 x1] [-2 y0] [-3 y1] [-4 z0] [-5 z1] [-6 pbc_x] [-7 pbc_y] [-8 pbc_z]" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " [-f input_file] [-d ndim] [-e nev] [-p npr] [-q npr1] [t elemTypeStr] [-w targ_en] [-x nx] [-y ny] [-z nz] [-0 x0] [-1 x1] [-2 y0] [-3 y1] [-4 z0] [-5 z1] [-6 pbc_x] [-7 pbc_y] [-8 pbc_z]" << std::endl;
         return 1;
     }
   }
@@ -255,6 +292,7 @@ ndim=stoi(variables["ndim"]);
 nev=stoi(variables["nev"]);
 npr=stoi(variables["npr"]);
 nx=stoi(variables["nx"]);
+targ_en=stod(variables["targ_en"]);
 x0=stod(variables["x0"]);
 x1=stod(variables["x1"]);
 pbc_x=stoi(variables["pbc_x"]);
@@ -290,10 +328,13 @@ pbc_z=stoi(variables["pbc_z"]);
     libMesh::ElemType elemType = it->second;
 
   if (ndim == 1)
+    logfile << "elemTypeStr, ndim, nev, nx = " << elemTypeStr << " " << ndim << " " << nev << " " << nx << "\n";
     std::cout << "elemTypeStr, ndim, nev, nx = " << elemTypeStr << " " << ndim << " " << nev << " " << nx << "\n";
   if (ndim == 2)
+    logfile << "elemTypeStr, ndim, nev, nx, ny = " << elemTypeStr << " " << ndim << " " << nev << " " << nx << " " << ny << "\n";
     std::cout << "elemTypeStr, ndim, nev, nx, ny = " << elemTypeStr << " " << ndim << " " << nev << " " << nx << " " << ny << "\n";
   if (ndim == 3)
+    logfile << "elemTypeStr, ndim, nev, nx, ny, nz = " << elemTypeStr << " " << ndim << " " << nev << " " << nx << " " << ny << " " << nz << "\n";
     std::cout << "elemTypeStr, ndim, nev, nx, ny, nz = " << elemTypeStr << " " << ndim << " " << nev << " " << nx << " " << ny << " " << nz << "\n";
 
   // Skip this 2D example if libMesh was compiled as 1D-only.
@@ -314,11 +355,14 @@ pbc_z=stoi(variables["pbc_z"]);
   EigenSystem & eigen_system =
     equation_systems.add_system<EigenSystem> ("Eigensystem");
 
+        logfile << "periodic boundary conditions flags:" << pbc_x << " " 
+	          << pbc_y << " " << pbc_z << std::endl;
         std::cout << "periodic boundary conditions flags:" << pbc_x << " " 
 	          << pbc_y << " " << pbc_z << std::endl;
   // PERIODIC BOUNDARY CONDITIONS 
     DofMap & dof_map = eigen_system.get_dof_map();
     if ((ndim == 1) && (pbc_x == 1)){
+        logfile << "periodic boundary conditions for x" << std::endl;
         std::cout << "periodic boundary conditions for x" << std::endl;
 	PeriodicBoundary xbdry(RealVectorValue(x1-x0));
         xbdry.myboundary = 0;
@@ -327,9 +371,11 @@ pbc_z=stoi(variables["pbc_z"]);
     }
 
     if ((ndim == 2) && ((pbc_x == 1) || (pbc_y == 1))){
+        logfile << "periodic boundary conditions for " ;
         std::cout << "periodic boundary conditions for " ;
 
 	if ((pbc_x == 1) && (pbc_y == 1)){
+          logfile << "x and y" << std::endl;
           std::cout << "x and y" << std::endl;
 
           PeriodicBoundary xbdry(RealVectorValue(x1-x0, 0.0)); 
@@ -343,6 +389,7 @@ pbc_z=stoi(variables["pbc_z"]);
           eigen_system.get_dof_map().add_periodic_boundary(ybdry); 
 	}
 	if ((pbc_x == 0) && (pbc_y == 1)){
+          logfile << "y" << std::endl;
           std::cout << "y" << std::endl;
 
           PeriodicBoundary xbdry(RealVectorValue(x1-x0, 0.0)); 
@@ -351,6 +398,7 @@ pbc_z=stoi(variables["pbc_z"]);
           eigen_system.get_dof_map().add_periodic_boundary(xbdry); 
 	}
 	if ((pbc_x == 1) && (pbc_y == 0)){
+          logfile << "x" << std::endl;
           std::cout << "x" << std::endl;
 
           PeriodicBoundary ybdry(RealVectorValue(0.0, y1-y0));
@@ -361,9 +409,11 @@ pbc_z=stoi(variables["pbc_z"]);
     }
 
     if ((ndim == 3) && ((pbc_x == 1) || (pbc_y == 1) || (pbc_z == 1))){
+        logfile << "periodic boundary conditions for " ;
         std::cout << "periodic boundary conditions for " ;
 
 	if ((pbc_x == 1) && (pbc_y == 1) && (pbc_z == 1)){
+          logfile << "x, y, and z " << std::endl;
           std::cout << "x, y, and z " << std::endl;
 
           PeriodicBoundary xbdry(RealVectorValue(x1-x0, 0.0, 0.0)); 
@@ -382,6 +432,7 @@ pbc_z=stoi(variables["pbc_z"]);
           eigen_system.get_dof_map().add_periodic_boundary(zbdry); 
 	}
 	if ((pbc_x == 1) && (pbc_y == 1) && (pbc_z == 0)){
+          logfile << "x and y " << std::endl;
           std::cout << "x and y " << std::endl;
 
           PeriodicBoundary xbdry(RealVectorValue(x1-x0, 0.0, 0.0)); 
@@ -395,6 +446,7 @@ pbc_z=stoi(variables["pbc_z"]);
           eigen_system.get_dof_map().add_periodic_boundary(ybdry); 
 	}
 	if ((pbc_x == 1) && (pbc_y == 0) && (pbc_z == 1)){
+          logfile << "x and z " << std::endl;
           std::cout << "x and z " << std::endl;
 
           PeriodicBoundary xbdry(RealVectorValue(x1-x0, 0.0, 0.0)); 
@@ -408,6 +460,7 @@ pbc_z=stoi(variables["pbc_z"]);
           eigen_system.get_dof_map().add_periodic_boundary(zbdry); 
 	}
 	if ((pbc_x == 0) && (pbc_y == 1) && (pbc_z == 1)){
+          logfile << "y and z " << std::endl;
           std::cout << "y and z " << std::endl;
 
           PeriodicBoundary ybdry(RealVectorValue(0.0, y1-y0, 0.0));
@@ -421,6 +474,7 @@ pbc_z=stoi(variables["pbc_z"]);
           eigen_system.get_dof_map().add_periodic_boundary(zbdry); 
 	}
 	if ((pbc_x == 1) && (pbc_y == 0) && (pbc_z == 0)){
+          logfile << "x" << std::endl;
           std::cout << "x" << std::endl;
 
           PeriodicBoundary xbdry(RealVectorValue(x1-x0, 0.0, 0.0)); 
@@ -429,6 +483,7 @@ pbc_z=stoi(variables["pbc_z"]);
           eigen_system.get_dof_map().add_periodic_boundary(xbdry); 
 	}
 	if ((pbc_x == 0) && (pbc_y == 1) && (pbc_z == 0)){
+          logfile << "y" << std::endl;
           std::cout << "y" << std::endl;
 
           PeriodicBoundary ybdry(RealVectorValue(0.0, y1-y0, 0.0));
@@ -437,6 +492,7 @@ pbc_z=stoi(variables["pbc_z"]);
           eigen_system.get_dof_map().add_periodic_boundary(ybdry); 
 	}
 	if ((pbc_x == 0) && (pbc_y == 0) && (pbc_z == 1)){
+          logfile << "z" << std::endl;
           std::cout << "z" << std::endl;
 
           PeriodicBoundary zbdry(RealVectorValue(0.0, 0.0, z1-z0));
@@ -462,16 +518,19 @@ pbc_z=stoi(variables["pbc_z"]);
   // ADD TRAP IF ndim != 1,2,3
 
   // Print information about the mesh to the screen.
-  mesh.print_info();
+  mesh.print_info(logfile);
+  mesh.print_info(std::cout);
 
         mesh_refinement.set_periodic_boundaries_ptr(dof_map.get_periodic_boundaries());
 
 
 int n_nodes = mesh.n_nodes();
 int n_elem = mesh.n_elem();
+logfile << "# nodes = " << n_nodes << "\n";
+logfile << "# elements = " << n_elem << "\n";
+logfile << "Writing nodal xyz coordinates to file: results/femvib.xyz" << std::endl;
 std::cout << "# nodes = " << n_nodes << "\n";
 std::cout << "# elements = " << n_elem << "\n";
-
 std::cout << "Writing nodal xyz coordinates to file: results/femvib.xyz" << std::endl;
 std::ofstream xyzfile;
 xyzfile.open("results/femvib.xyz");
@@ -513,6 +572,7 @@ for (; node_it != node_end; ++node_it)
 //    std::cout << "Finished writing nodal xyz coordinates to file: " << "results/femvib.xyz" << std::endl;
 //
 
+logfile << "Writing number of dimensions to file: results/ndim" << std::endl;
 std::cout << "Writing number of dimensions to file: results/ndim" << std::endl;
   std::ofstream ndimfile;
   ndimfile.open("results/ndim");
@@ -523,113 +583,119 @@ std::cout << "Writing number of dimensions to file: results/ndim" << std::endl;
   // Adds the variable "p" to "Eigensystem".   "p"
   // will be approximated using second-order approximation.
   eigen_system.add_variable("p", FIRST);
-
-  // Give the system a pointer to the matrix assembly
-  // function defined below.
   eigen_system.attach_assemble_function (assemble_mass);
-
-  // Set necessary parameters used in EigenSystem::solve(),
-  // i.e. the number of requested eigenpairs nev and the number
-  // of basis vectors ncv used in the solution algorithm. Note that
-  // ncv >= nev must hold and ncv >= 2*nev is recommended.
   equation_systems.parameters.set<unsigned int>("eigenpairs")    = nev;
   equation_systems.parameters.set<unsigned int>("basis vectors") = nev*3;
-
-  // You may optionally change the default eigensolver used by SLEPc.
-  // The Krylov-Schur method is mathematically equivalent to implicitly
-  // restarted Arnoldi, the method of Arpack, so there is currently no
-  // point in using SLEPc with Arpack.
-  // ARNOLDI     = default in SLEPc 2.3.1 and earlier
-  // KRYLOVSCHUR default in SLEPc 2.3.2 and later
-  // eigen_system.get_eigen_solver().set_eigensolver_type(KRYLOVSCHUR);
-
-// femvib-specific
       eigen_system.eigen_solver->set_eigensolver_type(KRYLOVSCHUR);
       eigen_system.eigen_solver->set_position_of_spectrum(SMALLEST_REAL);
-// femvib-specific
-
-  // Set the solver tolerance and the maximum number of iterations.
   equation_systems.parameters.set<Real>("linear solver tolerance") = pow(TOLERANCE, 5./3.);
   equation_systems.parameters.set<unsigned int>("linear solver maximum iterations") = 1000;
-
-  // Set the type of the problem, here we deal with
-  // a generalized Hermitian problem.
   eigen_system.set_eigenproblem_type(GHEP);
-
-  // Set the eigenvalues to be computed. Note that not
-  // all solvers in SLEPc support this capability.
-//  eigen_system.get_eigen_solver().set_position_of_spectrum(2.3);
-  ////  ALC commented out above line
-
-  // Initialize the data structures for the equation system.
   equation_systems.init();
+  eigen_system.assemble();
 
-  // Prints information about the system to the screen.
-  equation_systems.print_info();
+  eigen_system.get_matrix_A().close();  // Finalize stiffness matrix
+  eigen_system.get_matrix_B().close();  // Finalize mass matrix
 
-#if SLEPC_VERSION_LESS_THAN(3,1,0)
-  libmesh_error_msg("SLEPc 3.1 is required to call EigenSolver::set_initial_space()");
-#else
-  // Get the SLEPc solver object and set initial guess for one basis vector
-  // this has to be done _after_ the EquationSystems object is initialized
-  EigenSolver<Number> & slepc_eps = eigen_system.get_eigen_solver();
-  NumericVector<Number> & initial_space = eigen_system.add_vector("initial_space");
-  initial_space.add(1.0);
-  slepc_eps.set_initial_space(initial_space);
-#endif
+// Downcast matrix wrappers to access PETSc raw matrices
+auto& A_mat_wrapper = static_cast<libMesh::PetscMatrix<Number>&>(eigen_system.get_matrix_A());
+auto& B_mat_wrapper = static_cast<libMesh::PetscMatrix<Number>&>(eigen_system.get_matrix_B());
 
-  // Solve the system "Eigensystem".
-  eigen_system.solve();
+// Extract raw PETSc matrix handles
+Mat A = A_mat_wrapper.mat();
+Mat B = B_mat_wrapper.mat();
 
-  // Get the number of converged eigen pairs.
-  unsigned int nconv = eigen_system.get_n_converged();
+  equation_systems.print_info(std::cout);
+  equation_systems.print_info(logfile);
 
-  libMesh::out << "Number of converged eigenpairs: "
-               << nconv
-               << "\n"
-               << std::endl;
+  EPS eps;
+EPSCreate(PETSC_COMM_WORLD, &eps);
 
-  // Print the requested eigentates to ExodusII format files
-  if (nconv != 0)
-    {
-#ifdef LIBMESH_HAVE_EXODUS_API
-      for (int i=npr1; i<npr1+npr; i++)
-      {
-        std::ostringstream eigenstate_output_name;
-        eigenstate_output_name << "results/eigenstate" << i << ".e";
-        eigen_system.get_eigenpair(i);
-        ExodusII_IO (mesh).write_equation_systems (eigenstate_output_name.str(), equation_systems);
-      //      The gnuplot commands below may be useful for 1-D
-//      GnuPlotIO plot(mesh, "Adaptivity Example 1", GnuPlotIO::GRID_ON);
-//      plot.write_equation_systems ("gnuplot_script", equation_systems);
-#endif // #ifdef LIBMESH_HAVE_EXODUS_API
-      }
-      // next lines for extracting eigenvalues adapted from eigenproblem_ex3.C
-        // write out all of the computed eigenvalues and plot the specified eigenvector
-      std::ostringstream eigenvalue_output_name;
-      eigenvalue_output_name << "results/eigenvalues.txt";
-      std::ofstream evals_file(eigenvalue_output_name.str().c_str());
-      for (unsigned int i=0; i<nconv; i++)
-        {
-          std::pair<Real,Real> eval = eigen_system.get_eigenpair(i);
-          // The eigenvalues should be real!
-          libmesh_assert_less (eval.second, TOLERANCE);
-          evals_file << eval.first << std::endl;
-        }
-      evals_file.close();
-    }
-  else
-    {
-      libMesh::out << "WARNING: Solver did not converge!\n" << nconv << std::endl;
-    }
+EPSSetOperators(eps, A, B);
+EPSSetProblemType(eps, EPS_GHEP);  // Generalized Hermitian
 
-#endif // LIBMESH_HAVE_SLEPC
+EPSSetType(eps, EPSKRYLOVSCHUR);  // Or any other appropriate solver
+EPSSetWhichEigenpairs(eps, EPS_TARGET_REAL);
+EPSSetTarget(eps, targ_en);  // Your desired energy target
 
-  // All done.
-  return 0;
+// Enable shift-and-invert
+ST st;
+EPSGetST(eps, &st);
+STSetType(st, STSINVERT);
+
+// Set dimensions (nev = how many eigenpairs to find)
+EPSSetDimensions(eps, nev, PETSC_DEFAULT, PETSC_DEFAULT);
+
+// Finalize and solve
+EPSSetFromOptions(eps);
+EPSSolve(eps);
+
+// Optional: inspect spectrum
+PetscInt nconv;
+EPSGetConverged(eps, &nconv);
+
+// Problem: When using target_energy, SLEPc eigenpairs are unsorted. 
+// We will sort on the real part of the eigenvalue and asume the imaginary part = 0.
+// Extract all eigenvalues and their original indices
+std::vector<std::pair<double, PetscInt>> eigenpairs;
+
+for (PetscInt i = 0; i < nconv; ++i)
+{
+    PetscScalar kr, ki;
+    EPSGetEigenvalue(eps, i, &kr, &ki);
+
+    if (std::abs(PetscImaginaryPart(ki)) > 1e-10) continue;  // skip complex eigenvalues
+
+    eigenpairs.emplace_back(PetscRealPart(kr), i);
 }
 
+// Sort by increasing eigenvalue
+std::sort(eigenpairs.begin(), eigenpairs.end(),
+          [](const auto& a, const auto& b) {
+              return a.first < b.first;
+          });
 
+// Loop over sorted eigenvalues 
+std::ofstream eigenvalue_file("results/eigenvalues.txt");
+eigenvalue_file << "\n EIGENVALUES\ni   Re(evalue) \n";
+eigenvalue_file << std::fixed << std::setprecision(5);
+logfile << "\n EIGENVALUES\ni    Re(evalue)    Eigenstate file\n";
+logfile << std::fixed << std::setprecision(5);
+for (std::size_t i = 0; i < eigenpairs.size(); ++i)
+{
+    double eval = eigenpairs[i].first;
+    PetscInt orig_index = eigenpairs[i].second;
+
+    // print eigenstate if npr1 <= i < npr1+npr
+    std::ostringstream eigenstate_filename;
+    if (npr1 <= i && i < npr1 + npr) {
+      eigenstate_filename << "results/eigenstate_" << i << ".txt";
+      write_petsc_eigenvector_ascii(eps, orig_index, equation_systems,
+                                   "Eigensystem", "p", eigenstate_filename.str());
+    }
+    // print eigenvalue (real part only)
+    eigenvalue_file << i << "  " << eval << std::endl;
+    logfile << i << "  " << eval << "  " << eigenstate_filename.str() << std::endl;
+}
+  std::cout << "Wrote " << npr << " eigenstates to results/\n" << std::endl;
+
+  // All done.
+  auto end = std::chrono::system_clock::now();  // end timekeeping
+
+  std::chrono::duration<double> elapsed_seconds = end-start;
+  std::time_t end_time = std::chrono::system_clock::to_time_t(end);
+
+  logfile << "\n finished computation at " << std::ctime(&end_time)
+              << std::fixed << std::setprecision(3)
+              << "Elapsed time: " << elapsed_seconds.count() << "s"
+              << std::endl;
+  std::cout << "finished computation at " << std::ctime(&end_time)
+              << std::fixed << std::setprecision(3)
+              << "Elapsed time: " << elapsed_seconds.count() << "s"
+              << std::endl;
+
+return 0;
+}
 
 void assemble_mass(EquationSystems & es,
                    const std::string & libmesh_dbg_var(system_name))
@@ -650,7 +716,9 @@ void assemble_mass(EquationSystems & es,
 // std::ifstream inpot;
  std::ifstream inpot, inxx, inxy, inyy, inzx, inzy, inzz;
  std::ofstream outpot;
+ std::ofstream logfile("results/femvib.log", std::ios::app);
 
+logfile << "Reading Kriging parameters from files results/optr results/opp" << std::endl;
 std::cout << "Reading Kriging parameters from files results/optr results/opp" << std::endl;
   std::ifstream oppmfile;
   oppmfile.open("results/opp");
@@ -660,9 +728,12 @@ std::cout << "Reading Kriging parameters from files results/optr results/opp" <<
   optrfile.open("results/optr");
   optrfile >> rval;
   optrfile.close();
+ logfile << "rval = " << rval << "\n" ;
  std::cout << "rval = " << rval << "\n" ;
+ logfile << "nptsx = " << nptsx << "\n" ;
  std::cout << "nptsx = " << nptsx << "\n" ;
 
+logfile << "Reading number of dimensions from file results/ndim" << std::endl;
 std::cout << "Reading number of dimensions from file results/ndim" << std::endl;
   std::ifstream ndimfile;
   ndimfile.open("results/ndim");
@@ -689,6 +760,7 @@ std::cout << "Reading number of dimensions from file results/ndim" << std::endl;
  std::string number;
  std::string dataline;
  inpot >> nptspot;  // 
+ logfile << "Number of energies in PES grid = " << nptspot << "\n";
  std::cout << "Number of energies in PES grid = " << nptspot << "\n";
 
  Eigen::MatrixXd m(nptspot,ndim);
@@ -705,6 +777,7 @@ if (ndim == 1)	inpot >> xpot[i][0] >> Energy[i];
 if (ndim == 2)	inpot >> xpot[i][0] >> xpot[i][1] >> Energy[i];
 if (ndim == 3)	inpot >> xpot[i][0] >> xpot[i][1] >> xpot[i][2] >> Energy[i];
  }
+ logfile << "\n" ;
  std::cout << "\n" ;
 
  outpot.close();
@@ -951,9 +1024,10 @@ if (ndim == 3)	inpot >> xpot[i][0] >> xpot[i][1] >> xpot[i][2] >> Energy[i];
 
   MeshBase::const_element_iterator       el     = mesh.elements_begin();
   const MeshBase::const_element_iterator end_el = mesh.elements_end();
+  logfile << "Writing PES data to file: results/pot.out " << std::endl;
   std::cout << "Writing PES data to file: results/pot.out " << std::endl;
 
-// HERE IS WHERE WE WILL CHECK FOR DUPLICATES
+// Check for duplicate points in xpot -- these will wreck the numerical integration
   dupl(xpot,nptspot,ndim);
 
   double V, gxx, gxy, gyy, gzx, gzy, gzz;
@@ -1105,7 +1179,9 @@ if (ndim == 3)	inpot >> xpot[i][0] >> xpot[i][1] >> xpot[i][2] >> Energy[i];
 
       potfile.close();
 // DEBUG      outAm.close();
+      logfile << "Finished writing PES data to file: " << "results/pot.out" << std::endl;
       std::cout << "Finished writing PES data to file: " << "results/pot.out" << std::endl;
+      logfile << "Matrix A and B assembly completed. " << "\n" << std::endl;
       std::cout << "Matrix A and B assembly completed. " << "\n" << std::endl;
 
       //      THE FOLLOWING COMMANDS GENERATE A DEPRECATED CODE WARNING
@@ -1122,3 +1198,49 @@ if (ndim == 3)	inpot >> xpot[i][0] >> xpot[i][1] >> xpot[i][2] >> Energy[i];
   libmesh_ignore(es);
 #endif // LIBMESH_HAVE_SLEPC
 }
+
+void write_petsc_eigenvector_ascii(const EPS& eps,
+                                   PetscInt eig_index,
+                                   const libMesh::EquationSystems& equation_systems,
+                                   const std::string& system_name,
+                                   const std::string& var_name,
+                                   const std::string& output_filename)
+{
+    // Get mesh and system info
+    const libMesh::MeshBase& mesh = equation_systems.get_mesh();
+    const libMesh::System& system = equation_systems.get_system(system_name);
+    const libMesh::DofMap& dof_map = system.get_dof_map();
+    const unsigned int var_num = system.variable_number(var_name);
+
+    // Get the eigenvector from PETSc
+    Vec xr;
+    auto& libmesh_vec = dynamic_cast<libMesh::PetscVector<Number>&>(
+		    *equation_systems.get_system("Eigensystem").solution
+    );
+    VecDuplicate(libmesh_vec.vec(), &xr);
+    EPSGetEigenvector(eps, eig_index, xr, nullptr);
+
+    // Open output file
+    std::ofstream out(output_filename);
+    out << std::scientific << std::setprecision(10);
+
+    std::vector<libMesh::dof_id_type> dof_indices;
+    for (const auto& node : mesh.local_node_ptr_range())
+    {
+        dof_map.dof_indices(node, dof_indices, var_num);
+        if (dof_indices.empty())
+            continue;
+
+        PetscScalar psi_val = 0.0;
+        PetscErrorCode ierr = VecGetValues(xr, 1, &dof_indices[0], &psi_val);
+        if (ierr != 0) continue;
+
+        out << (*node)(0) << " "  // x
+            << (*node)(1) << " "  // y
+            << (*node)(2) << " "  // z
+            << PetscRealPart(psi_val) << "\n";
+    }
+
+    VecDestroy(&xr);
+}
+
